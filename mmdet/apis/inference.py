@@ -35,6 +35,10 @@ def init_detector(config, checkpoint=None, device='cuda:0'):
         checkpoint = load_checkpoint(model, checkpoint)
         if 'CLASSES' in checkpoint['meta']:
             model.CLASSES = checkpoint['meta']['CLASSES']
+            warnings.simplefilter('once')
+            warnings.warn('Class names are not saved in the checkpoint\'s '
+                          'meta data, use COCO classes by default.')
+            model.CLASSES = get_classes('coco')
         else:
             warnings.simplefilter('once')
             warnings.warn('Class names are not saved in the checkpoint\'s '
@@ -150,3 +154,21 @@ def show_result_pyplot(model, img, result, score_thr=0.3, fig_size=(15, 10)):
     plt.figure(figsize=fig_size)
     plt.imshow(mmcv.bgr2rgb(img))
     plt.show()
+
+def save_result_pyplot(model, img, result,path,score_thr=0.3, fig_size=(15, 10)):
+    """Visualize the detection results on the image.
+
+    Args:
+        model (nn.Module): The loaded detector.
+        img (str or np.ndarray): Image filename or loaded image.
+        result (tuple[list] or list): The detection result, can be either
+            (bbox, segm) or just bbox.
+        score_thr (float): The threshold to visualize the bboxes and masks.
+        fig_size (tuple): Figure size of the pyplot figure.
+    """
+    if hasattr(model, 'module'):
+        model = model.module
+    img = model.show_result(img, result, score_thr=score_thr, show=False)
+    plt.figure(figsize=fig_size)
+    plt.imshow(mmcv.bgr2rgb(img))
+    plt.savefig(path)

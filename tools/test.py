@@ -1,5 +1,7 @@
 import argparse
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 import mmcv
 import torch
@@ -118,6 +120,7 @@ def main():
     # for backward compatibility
     if 'CLASSES' in checkpoint['meta']:
         model.CLASSES = checkpoint['meta']['CLASSES']
+        model.CLASSES = dataset.CLASSES
     else:
         model.CLASSES = dataset.CLASSES
 
@@ -142,7 +145,27 @@ def main():
         if args.format_only:
             dataset.format_results(outputs, **kwargs)
         if args.eval:
-            dataset.evaluate(outputs, args.eval, **kwargs)
+            precision = dataset.evaluate(outputs, args.eval, **kwargs)['precision']
+            for i,cl in enumerate(dataset.CLASSES):
+                rec = np.arange(0.0,1.01,0.01)
+                pre_5 = precision[0,:,i]
+                pre_7 = precision[4,:,i]
+                pre_9 = precision[8,:,i]
+
+                plt.clf()
+                plt.plot(rec,pre_5,'m-',label='IoU=0.5')
+                plt.plot(rec,pre_7,'b-',label='IoU=0.7')
+                plt.plot(rec,pre_9,'c-',label='IoU=0.9')
+                plt.xlim(0,1.0)
+                plt.ylim(0,1.01)
+                plt.title(f"precision-recall curve of {cl}")
+                plt.grid(True)
+                plt.xlabel("recall")
+                plt.ylabel("precision")
+                plt.legend(loc="lower left")
+
+                name = os.path.join(os.path.dirname(args.out),f'pr_curve_{cl}.png')
+                plt.savefig(name)
 
 
 if __name__ == '__main__':

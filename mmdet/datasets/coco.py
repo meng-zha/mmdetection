@@ -18,20 +18,7 @@ from .custom import CustomDataset
 @DATASETS.register_module()
 class CocoDataset(CustomDataset):
 
-    CLASSES = ('person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-               'train', 'truck', 'boat', 'traffic light', 'fire hydrant',
-               'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
-               'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe',
-               'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-               'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat',
-               'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
-               'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
-               'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot',
-               'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-               'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop',
-               'mouse', 'remote', 'keyboard', 'cell phone', 'microwave',
-               'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock',
-               'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
+    CLASSES = ('face','face_mask')
 
     def load_annotations(self, ann_file):
         self.coco = COCO(ann_file)
@@ -323,7 +310,8 @@ class CocoDataset(CustomDataset):
                  jsonfile_prefix=None,
                  classwise=False,
                  proposal_nums=(100, 300, 1000),
-                 iou_thrs=np.arange(0.5, 0.96, 0.05)):
+                 iou_thrs=np.arange(0.5, 0.96, 0.05),
+                 include = False):
         """Evaluation in COCO protocol.
 
         Args:
@@ -405,6 +393,7 @@ class CocoDataset(CustomDataset):
                 cocoEval.evaluate()
                 cocoEval.accumulate()
                 cocoEval.summarize()
+
                 if classwise:  # Compute per-category AP
                     # Compute per-category AP
                     # from https://github.com/facebookresearch/detectron2/
@@ -421,15 +410,18 @@ class CocoDataset(CustomDataset):
                         precision = precision[precision > -1]
                         if precision.size:
                             ap = np.mean(precision)
+                            ap5 = np.mean(precisions[0,:,idx,0,-1])
+                            ap7 = np.mean(precisions[4,:,idx,0,-1])
+                            ap9 = np.mean(precisions[8,:,idx,0,-1])
                         else:
                             ap = float('nan')
                         results_per_category.append(
-                            (f'{nm["name"]}', f'{float(ap):0.3f}'))
+                            (f'{nm["name"]}', f'{float(ap):0.3f}',f'{float(ap5):0.3f}',f'{float(ap7):0.3f}',f'{float(ap9):0.3f}'))
 
-                    num_columns = min(6, len(results_per_category) * 2)
+                    num_columns = 5
                     results_flatten = list(
                         itertools.chain(*results_per_category))
-                    headers = ['category', 'AP'] * (num_columns // 2)
+                    headers = ['category', 'AP', 'AP0.5','AP0.7','AP0.9'] 
                     results_2d = itertools.zip_longest(*[
                         results_flatten[i::num_columns]
                         for i in range(num_columns)
@@ -450,6 +442,9 @@ class CocoDataset(CustomDataset):
                 eval_results[f'{metric}_mAP_copypaste'] = (
                     f'{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} '
                     f'{ap[4]:.3f} {ap[5]:.3f}')
+
+                if include:
+                    eval_results['precision'] = cocoEval.eval['precision'][...,0,-1]
         if tmp_dir is not None:
             tmp_dir.cleanup()
         return eval_results
